@@ -1,0 +1,69 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: polis-app
+    restart: unless-stopped
+    working_dir: /var/www
+    volumes:
+      - ./:/var/www
+      - ./docker/php/php.ini:/usr/local/etc/php/conf.d/custom.ini
+    networks:
+      - polis-network
+
+  nginx:
+    image: nginx:alpine
+    container_name: polis-nginx
+    restart: unless-stopped
+    ports:
+      - "8001:80"
+    volumes:
+      - ./:/var/www
+      - ./docker/nginx/conf.d:/etc/nginx/conf.d
+    depends_on:
+      - app
+      - mysql
+    networks:
+      - polis-network
+
+  mysql:
+    image: mysql:8.0
+    container_name: polis-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: polis
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_PASSWORD: root
+      MYSQL_USER: polis
+    volumes:
+      - polis-mysql-data:/var/lib/mysql
+    ports:
+      - "3306:3306"
+    networks:
+      - polis-network
+
+  node:
+    image: node:20-alpine
+    container_name: polis-node
+    working_dir: /var/www
+    volumes:
+      - ./:/var/www
+      - node_modules:/var/www/node_modules
+    command: sh -c "npm install && npm run dev"
+    ports:
+      - "5173:5173"
+    depends_on:
+      - app
+    networks:
+      - polis-network
+
+networks:
+  polis-network:
+    driver: bridge
+
+volumes:
+  polis-mysql-data:
+    driver: local
+  node_modules:
+    driver: local
